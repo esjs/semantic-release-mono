@@ -43,7 +43,105 @@ test.afterEach.always((t) => {
   td.reset();
 });
 
-test.serial("Plugins are called with expected values", async (t) => {
+test.serial("If provided, use `version` field instead of `name` to determine release version", async (t) => {
+  const { cwd, repositoryUrl } = await gitRepo(true);
+  await gitCommits(["feat: initial commit"], { cwd });
+  await gitTagVersion("v1.0.0", undefined, { cwd });
+  await gitPush(repositoryUrl, "master", { cwd });
+
+  await gitCheckout("release/package-name", true, { cwd });
+  await gitCommits(["feat: release/package-name branch initial commit 2.0.0\n\n BREAKING CHANGE: some message"], {
+    cwd,
+  });
+  await gitTagVersion("package-name--v2.0.0", undefined, { cwd });
+  await gitPush(repositoryUrl, "release/package-name", { cwd });
+
+  await gitCommits(["feat: release/package-name branch add feature commit 2.1.0"], { cwd });
+  await gitTagVersion("package-name--v2.1.0", undefined, { cwd });
+
+  await gitCommits(["fix: release/package-name branch add feature commit 2.1.1"], { cwd });
+  await gitTagVersion("package-name--v2.1.1", undefined, { cwd });
+
+  await gitCommits(["feat: release/package-name branch add another feature commit 2.2.0"], { cwd });
+  await gitTagVersion("package-name--v2.2.0", undefined, { cwd });
+
+  await gitCommits(["feat: release/package-name branch add one more feature commit 2.3.0"], { cwd });
+  await gitTagVersion("package-name--v2.3.0", undefined, { cwd });
+
+  await gitCommits(["fix: release/package-name branch add fix commit 2.3.1"], { cwd });
+  await gitTagVersion("package-name--v2.3.1", undefined, { cwd });
+
+  await gitCommits(["fix: release/package-name branch add fix2 commit 2.3.2"], { cwd });
+  await gitTagVersion("package-name--v2.3.2", undefined, { cwd });
+  await gitPush(repositoryUrl, "master", { cwd });
+
+  await gitCheckout("tags/package-name--v2.1.1", undefined, { cwd });
+  await gitCheckout("release/package-name--2.1.x", true, { cwd });
+  await gitPush(repositoryUrl, "release/package-name--2.1.x", { cwd });
+
+  const config = {
+    branches: [
+      "master",
+      {
+        name: "release/package-name--<%= version %>",
+        version: "(+([0-9])?(.{+([0-9]),x}).x)",
+      },
+    ],
+    repositoryUrl,
+    tagFormat: `package-name--v\${version}`,
+  };
+
+  const options = {
+    ...config,
+    verifyConditions: stub().resolves(),
+    verifyRelease: stub().resolves(),
+    generateNotes: stub().resolves(""),
+    addChannel: false,
+    prepare: stub().resolves(),
+    publish: stub().resolves(),
+    success: stub().resolves(),
+    fail: stub().resolves(),
+  };
+
+  const env = {};
+  await td.replaceEsm("../lib/get-logger.js", null, () => t.context.logger);
+  const envCi = (await td.replaceEsm("env-ci")).default;
+  td.when(envCi({ env, cwd })).thenReturn({
+    isCi: true,
+    branch: "release/package-name--2.1.x",
+    isPr: false,
+  });
+  const semanticRelease = (await import("../index.js")).default;
+
+  let { releases } = await semanticRelease(options, {
+    cwd,
+    env: {},
+    stdout: { write: () => {} },
+    stderr: { write: () => {} },
+  });
+
+  t.is(releases.length, 1);
+  t.is(releases[0].channel, "release/package-name--2.1.x");
+  t.is(releases[0].version, "2.1.1");
+  t.is(releases[0].gitTag, "package-name--v2.1.1");
+  t.is(await gitGetNote("package-name--v2.1.1", { cwd }), '{"channels":[null,"release/package-name--2.1.x"]}');
+
+  await gitCommits(["fix: a fix"], { cwd });
+  ({ releases } = await semanticRelease(options, {
+    cwd,
+    env,
+    stdout: { write: () => {} },
+    stderr: { write: () => {} },
+  }));
+
+  t.is(releases.length, 1);
+  t.is(releases[0].channel, "release/package-name--2.1.x");
+  t.is(releases[0].version, "2.1.2");
+  t.is(releases[0].gitTag, "package-name--v2.1.2");
+  t.is(await gitGetNote("package-name--v2.1.2", { cwd }), '{"channels":["release/package-name--2.1.x"]}');
+});
+
+test("Plugins are called with expected values", async (t) => {
   // Create a git repository, set the current working directory at the root of the repo
   const { cwd, repositoryUrl } = await gitRepo(true);
   // Add commits to the master branch
@@ -100,6 +198,7 @@ test.serial("Plugins are called with expected values", async (t) => {
     {
       channel: undefined,
       name: "master",
+      version: "master",
       range: ">=1.0.0",
       accept: ["patch", "minor", "major"],
       tags: [{ channels: ["next"], gitTag: "v1.0.0", version: "1.0.0" }],
@@ -109,6 +208,7 @@ test.serial("Plugins are called with expected values", async (t) => {
     {
       channel: "next",
       name: "next",
+      version: "next",
       range: ">=1.0.0",
       accept: ["patch", "minor", "major"],
       tags: [{ channels: ["next"], gitTag: "v1.0.0", version: "1.0.0" }],

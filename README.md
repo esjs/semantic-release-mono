@@ -1,3 +1,16 @@
+<h1>semantic-release-mono</h1>
+<p>Fork of sematic release with various improvements to make it easier to use inside monorepos.</p>
+
+## Highlights
+
+- Added support to [commitPaths](docs/usage/configuration.md#commitPaths) similar to how it's done inside [semantic-release-plus](https://github.com/semantic-release-plus/semantic-release)
+  - allows support for monorepos like nx and lerna to support multi version between releasable apps
+- Added `version` field inside [branches](docs/usage/configuration.md#branches) configuration to simplify work with maintenance releases (see Notes for example).
+
+<br/>
+<br/>
+<br/>
+
 <h1 align="center" style="border-bottom: none;">📦🚀 semantic-release</h1>
 <h3 align="center">Fully automated version management and package publishing</h3>
 <p align="center">

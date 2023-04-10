@@ -78,6 +78,20 @@ The branches on which releases should happen. By default **semantic-release** wi
 - pre-releases to the `beta` distribution channel from the branch `beta` if it exists
 - pre-releases to the `alpha` distribution channel from the branch `alpha` if it exists
 
+**Note**: For monorepo scenarios you can use configuration with `version` field, which would simplify work with maintenance releases.
+
+```js
+{
+  // `<%= version  %>` will be replaced by new release version
+  // e.g. `release/package-name--1.x.x` or `release/package-name--2.1.x`
+  name: 'release/package-name--<%= version %>',
+  // this should describe pattern for extracting version from branch name
+  // this RegExp should be enough for all generic use cases
+  // but you can change it however you want
+  version: '+([0-9])?(.{+([0-9]),x}).x',
+}
+```
+
 **Note**: If your repository does not have a release branch, then **semantic-release** will fail with an `ERELEASEBRANCHES` error message. If you are using the default configuration, you can fix this error by pushing a `master` branch.
 
 **Note**: Once **semantic-release** is configured, any user with the permission to push commits on one of those branches will be able to publish a release. It is recommended to protect those branches, for example with [GitHub protected branches](https://docs.github.com/github/administering-a-repository/about-protected-branches).
@@ -115,6 +129,14 @@ Define the list of plugins to use. Plugins will run in series, in the order defi
 Plugins configuration can defined by wrapping the name and an options object in an array.
 
 See [Plugins configuration](plugins.md#plugins) for more details.
+
+### commitPaths
+
+Type: `Array<string>`<br>
+Default: `[]`<br>
+CLI arguments: **Not Implemented**
+
+Allows the commits returned to be filtered by the array of paths defined in commitPaths.
 
 ### dryRun
 

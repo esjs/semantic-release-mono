@@ -42,13 +42,42 @@ test("Expand branches defined with globs", async (t) => {
   ];
 
   t.deepEqual(await expand(repositoryUrl, { cwd }, branches), [
-    { name: "1.0.x" },
-    { name: "1.x.x" },
-    { name: "2.x" },
+    { name: "1.0.x", version: "1.0.x" },
+    { name: "1.x.x", version: "1.x.x" },
+    { name: "2.x", version: "2.x" },
+    { name: "master", version: "master", channel: "latest" },
+    { name: "next", version: "next" },
+    { name: "pre/bar", version: "pre/bar", channel: "bar", prerelease: true },
+    { name: "pre/foo", version: "pre/foo", channel: "foo", prerelease: true },
+    { name: "beta", version: "beta", channel: "channel-beta", prerelease: true },
+  ]);
+});
+
+test.only("Expand branches defined with globs using version field", async (t) => {
+  const { cwd, repositoryUrl } = await gitRepo(true);
+  await gitCommits(["First"], { cwd });
+  await gitPush(repositoryUrl, "master", { cwd });
+
+  await gitCheckout("release/package-name--1.0.x", true, { cwd });
+  await gitCommits(["Second"], { cwd });
+  await gitPush(repositoryUrl, "release/package-name--1.0.x", { cwd });
+  await gitCheckout("release/package-name--1.x.x", true, { cwd });
+  await gitCommits(["Third"], { cwd });
+  await gitPush(repositoryUrl, "release/package-name--1.x.x", { cwd });
+  await gitCheckout("release/package-name--2.x", true, { cwd });
+  await gitCommits(["Fourth"], { cwd });
+  await gitPush(repositoryUrl, "release/package-name--2.x", { cwd });
+
+  const branches = [
+    // Should match all maintenance type branches
+    { name: "release/package-name--<%= version %>", version: "+([0-9])?(.{+([0-9]),x}).x" },
     { name: "master", channel: "latest" },
-    { name: "next" },
-    { name: "pre/bar", channel: "bar", prerelease: true },
-    { name: "pre/foo", channel: "foo", prerelease: true },
-    { name: "beta", channel: "channel-beta", prerelease: true },
+  ];
+
+  t.deepEqual(await expand(repositoryUrl, { cwd }, branches), [
+    { name: "release/package-name--1.0.x", version: "1.0.x" },
+    { name: "release/package-name--1.x.x", version: "1.x.x" },
+    { name: "release/package-name--2.x", version: "2.x" },
+    { name: "master", version: "master", channel: "latest" },
   ]);
 });
